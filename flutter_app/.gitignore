@@ -30,6 +30,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+build/web/
 
 # Symbolication related
 app.*.symbols
@@ -41,3 +42,54 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Additional Flutter related
+.idea/
+.packages
+
+# Gradle related
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/**/build/
+/android/local.properties
+/android/key.properties
+
+# iOS related
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/.symlinks/
+**/ios/Pods/
+**/ios/Runner.xcworkspace/
+**/ios/build/
+
+# Windows related
+/windows/runner/GeneratedPluginRegistrant.cpp
+/windows/runner/GeneratedPluginRegistrant.h
+/windows/flutter
+
+# Flutter Web related
+/web/**/assets/
+.web/
+
+# Python related
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+pip-log.txt
+coverage/
+.cache
+
+# Flask related
+instance/
+*.env
+*.ini
+*.cfg
