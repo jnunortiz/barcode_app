@@ -3,13 +3,13 @@ description: A Flutter app for barcode scanning.
 version: 1.0.0+1
 
 environment:
-  sdk: ">=2.12.0 <3.0.0"
+  sdk: ">=2.18.0 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  http: ^0.13.3  # HTTP package for making API requests
-  file_picker: ^4.2.0  # Package for picking files
+  http: ^1.2.2
+  csv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
