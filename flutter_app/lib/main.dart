@@ -49,13 +49,13 @@ class BarcodeHomePage extends StatefulWidget {
 class _BarcodeHomePageState extends State<BarcodeHomePage> {
   TextEditingController _textController = TextEditingController();
   List<String> _piecePins = [];
-  List<dynamic> _results = [];
+  List<Map<String, dynamic>> _results = []; // Ensure _results is a List<Map<String, dynamic>>
   bool _isLoading = false;
-  String _apiResponse = '';
   Set<String> _uniqueTerminals = Set();
   Set<String> _uniqueEvents = Set();
   String? _selectedTerminal;
   String? _selectedEvent;
+  String _apiResponse = '';
 
   @override
   void initState() {
@@ -65,9 +65,9 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
   void _updateFilters() {
     List<String> terminalsList =
-        _results.map((result) => result['Terminal Name']).cast<String>().toList();
+        _results.map((result) => result['Terminal Name'] as String).toList();
     List<String> eventsList =
-        _results.map((result) => result['Event Code Desc[Eng]']).cast<String>().toList();
+        _results.map((result) => result['Event Code Desc[Eng]'] as String).toList();
 
     terminalsList.sort();
     eventsList.sort();
@@ -80,7 +80,6 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
   Future<void> _pickFile() async {
     // File picking logic here if needed
-    // You may not need this if you're using text input directly
   }
 
   Future<void> _searchPiecePins() async {
@@ -114,7 +113,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
       if (response.statusCode == 200) {
         setState(() {
-          _results = json.decode(response.body);
+          _results = List<Map<String, dynamic>>.from(json.decode(response.body)); // Ensure the correct type
           _apiResponse = 'Search completed successfully.';
           _isLoading = false;
           _updateFilters();
@@ -122,14 +121,16 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
       } else {
         setState(() {
           _isLoading = false;
+          _apiResponse = 'Error: ${response.reasonPhrase}';
         });
-        _showSnackBar('Error: ${response.reasonPhrase}');
+        _showSnackBar(_apiResponse);
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _apiResponse = 'Error: $e';
       });
-      _showSnackBar('Error: $e');
+      _showSnackBar(_apiResponse);
     }
   }
 
@@ -143,7 +144,6 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   void _clearResults() {
     setState(() {
       _results.clear();
-      _apiResponse = '';
       _updateFilters();
       _selectedTerminal = null;
       _selectedEvent = null;
@@ -155,6 +155,35 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
       content: Text(message),
       duration: Duration(seconds: 3),
     ));
+  }
+
+  List<DataColumn> _getColumns() {
+    if (_results.isNotEmpty) {
+      var firstResult = _results.first;
+      return firstResult.keys.map((key) => DataColumn(label: Text(key))).toList();
+    } else {
+      return [
+        DataColumn(label: Text('No Data')),
+      ];
+    }
+  }
+
+  List<DataCell> _getCells(Map<String, dynamic> result) {
+    return result.keys.map((key) {
+      var value = result[key];
+      return DataCell(
+        Text(
+          value != null ? value.toString() : '',
+          overflow: TextOverflow.ellipsis, // Handle overflow gracefully
+        ),
+      );
+    }).toList();
+  }
+
+  void _applyFilters() {
+    setState(() {
+      // Apply filters here if needed
+    });
   }
 
   @override
@@ -210,112 +239,68 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
             SizedBox(height: 20),
             Row(
               children: [
-                DropdownButton<String>(
-                  value: _selectedTerminal,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedTerminal = newValue!;
-                      _applyFilters();
-                    });
-                  },
-                  items: _uniqueTerminals
-                      .map((String terminal) =>
-                          DropdownMenuItem<String>(value: terminal, child: Text(terminal)))
-                      .toList(),
-                  hint: Text('Select Terminal'),
+                Expanded(
+                  child: DropdownButton<String>(
+                    value: _selectedTerminal,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedTerminal = newValue!;
+                        _applyFilters();
+                      });
+                    },
+                    items: _uniqueTerminals
+                        .map((String terminal) =>
+                            DropdownMenuItem<String>(value: terminal, child: Text(terminal)))
+                        .toList(),
+                    hint: Text('Select Terminal'),
+                  ),
                 ),
                 SizedBox(width: 10),
-                DropdownButton<String>(
-                  value: _selectedEvent,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedEvent = newValue!;
-                      _applyFilters();
-                    });
-                  },
-                  items: _uniqueEvents
-                      .map((String event) =>
-                          DropdownMenuItem<String>(value: event, child: Text(event)))
-                      .toList(),
-                  hint: Text('Select Event'),
+                Expanded(
+                  child: DropdownButton<String>(
+                    value: _selectedEvent,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedEvent = newValue!;
+                        _applyFilters();
+                      });
+                    },
+                    items: _uniqueEvents
+                        .map((String event) =>
+                            DropdownMenuItem<String>(value: event, child: Text(event)))
+                        .toList(),
+                    hint: Text('Select Event'),
+                  ),
                 ),
               ],
             ),
             SizedBox(height: 20),
-            Text(
-              _apiResponse,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-            ),
+            if (_apiResponse.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  _apiResponse,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _apiResponse.startsWith('Error') ? Colors.red : Colors.green,
+                  ),
+                ),
+              ),
+            ],
             Expanded(
-              child: _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : (_results.isEmpty
-                      ? Center(child: Text('No results found.'))
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: [
-                              DataColumn(label: Text('Piece Pin')),
-                              DataColumn(label: Text('Scan Date')),
-                              DataColumn(label: Text('Scan Time')),
-                              DataColumn(label: Text('Terminal Name')),
-                              DataColumn(label: Text('Event Code Desc[Eng]')),
-                              DataColumn(label: Text('Expected Delivery Date')),
-                              DataColumn(label: Text('Service Date')),
-                              DataColumn(label: Text('Origin City')),
-                              DataColumn(label: Text('Destination City')),
-                              // Add more columns if needed
-                            ],
-                            rows: _results.map((result) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(Text(result['Piece Pin'])),
-                                  DataCell(Text(result['Scan Date'])),
-                                  DataCell(Text(result['Scan Time'])),
-                                  DataCell(Text(result['Terminal Name'])),
-                                  DataCell(Text(result['Event Code Desc[Eng]'])),
-                                  DataCell(Text(result['Expected Delivery Date'])),
-                                  DataCell(Text(result['Service Date'])),
-                                  DataCell(Text(result['Origin City'])),
-                                  DataCell(Text(result['Destination City'])),
-                                  // Add more cells if needed
-                                ],
-                              );
-                            }).toList(),
-                          ),
-                        )),
-            ),
-            SizedBox(height: 10),
-            Center(
-              child: ElevatedButton(
-                onPressed: _clearResults,
-                child: Text('Clear Results'),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: _getColumns(),
+                  rows: _results.map((result) {
+                    return DataRow(cells: _getCells(result));
+                  }).toList(),
+                ),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  void _applyFilters() {
-    List<dynamic> filteredResults = _results;
-
-    if (_selectedTerminal != null && _selectedTerminal!.isNotEmpty) {
-      filteredResults = filteredResults
-          .where((result) => result['Terminal Name'] == _selectedTerminal)
-          .toList();
-    }
-
-    if (_selectedEvent != null && _selectedEvent!.isNotEmpty) {
-      filteredResults = filteredResults
-          .where((result) => result['Event Code Desc[Eng]'] == _selectedEvent)
-          .toList();
-    }
-
-    setState(() {
-      _results = filteredResults;
-    });
   }
 }
