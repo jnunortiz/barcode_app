@@ -1,14 +1,12 @@
 // lib/services.dart
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 
-/// Sends a POST request with a given URL and body.
-///
-/// Returns the response from the request.
-Future<http.Response> postRequest(Uri url, Map<String, dynamic> body) async {
+/// Sends an HTTP POST request with the given URL and request body.
+Future<http.Response> postRequest(Uri url, Map<String, dynamic> requestBody) async {
   return await http.post(
     url,
     headers: {'Content-Type': 'application/json'},
-    body: json.encode(body),
+    body: json.encode(requestBody),
   );
 }

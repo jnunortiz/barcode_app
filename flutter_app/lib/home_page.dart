@@ -1,11 +1,8 @@
-// lib/home_page.dart
+import 'dart:convert'; // For JSON decoding
 import 'package:flutter/material.dart';
-import 'services.dart';
-import 'widgets.dart'; // Import the widgets.dart file
-import 'package:file_picker/file_picker.dart';
-import 'dart:convert';
-import 'dart:io';
-import 'package:csv/csv.dart';
+import 'file_service.dart'; // Import file service for file handling
+import 'widgets.dart'; // Import widgets for custom widget building
+import 'services.dart'; // Import services for HTTP requests
 
 /// The home page widget where users can interact with the app.
 class BarcodeHomePage extends StatefulWidget {
@@ -23,13 +20,12 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   @override
   void initState() {
     super.initState();
-
-    // Listen to text changes to update the state
     _textController.addListener(() {
       setState(() {}); // Rebuild the widget when text changes
     });
   }
 
+  /// Searches for piece pins based on the text in the input field.
   Future<void> _searchPiecePins() async {
     setState(() {
       _isLoading = true;
@@ -42,7 +38,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
     Map<String, dynamic> requestBody = {'piece_pins': _piecePins};
     var url = Uri.parse('http://localhost:5000/search');
-    
+
     try {
       var response = await postRequest(url, requestBody).timeout(Duration(seconds: 30));
       
@@ -68,31 +64,34 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     }
   }
 
+  /// Clears the search results displayed on the page.
   void _clearResults() {
     setState(() {
       _results.clear();
     });
   }
 
+  /// Handles file upload and updates the input field with file contents.
   Future<void> _pickAndLoadFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-
-    if (result != null) {
-      final bytes = result.files.single.bytes;
-      if (bytes != null) {
-        String content = utf8.decode(bytes);
-        List<String> lines = content.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
-        setState(() {
-          _textController.text = lines.join('\n');
-        });
-      } else {
-        _showSnackBar('Error reading the file.');
-      }
-    } else {
-      _showSnackBar('No file selected.');
+    var lines = await FileService.pickAndReadFile();
+    if (lines != null) {
+      setState(() {
+        _textController.text = lines.join('\n');
+      });
     }
   }
 
+  /// Exports the search results to a CSV file.
+  Future<void> _exportToCSV() async {
+    if (_results.isNotEmpty) {
+      final path = await FileService.exportToCSV(_results);
+      _showSnackBar('CSV exported to $path');
+    } else {
+      _showSnackBar('No data available to export.');
+    }
+  }
+
+  /// Clears the input field and search results.
   void _clearInput() {
     setState(() {
       _textController.clear();
@@ -100,6 +99,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
   }
 
+  /// Displays a snack bar with the given message.
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
@@ -175,11 +175,14 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
               child: _results.isNotEmpty
                   ? SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        columns: CustomWidgetBuilder.getColumns(_results),
-                        rows: _results
-                            .map((result) => DataRow(cells: CustomWidgetBuilder.getCells(result)))
-                            .toList(),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: DataTable(
+                          columns: CustomWidgetBuilder.getColumns(_results),
+                          rows: _results
+                              .map((result) => DataRow(cells: CustomWidgetBuilder.getCells(result)))
+                              .toList(),
+                        ),
                       ),
                     )
                   : Center(child: Text('No results found.')),
@@ -188,26 +191,5 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
         ),
       ),
     );
-  }
-
-  Future<void> _exportToCSV() async {
-    List<List<dynamic>> rows = [];
-    if (_results.isNotEmpty) {
-      rows.add(_results.first.keys.toList());
-      for (var result in _results) {
-        rows.add(result.values.toList());
-      }
-
-      String csv = const ListToCsvConverter().convert(rows);
-
-      final directory = Directory('${Platform.environment['USERPROFILE']}\\Downloads');
-      final path = '${directory.path}\\results.csv';
-      final file = File(path);
-      await file.writeAsString(csv);
-
-      _showSnackBar('CSV exported to $path');
-    } else {
-      _showSnackBar('No data available to export.');
-    }
   }
 }
