@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:typed_data'; // Required for reading bytes
-import 'package:file_picker/file_picker.dart';
-import 'dart:io' as io;
 
 void main() {
   runApp(BarcodeApp());
@@ -15,7 +12,7 @@ class BarcodeApp extends StatelessWidget {
     return MaterialApp(
       title: 'Barcode App',
       theme: ThemeData(
-        primarySwatch: Colors.blue, // Setting primarySwatch to define primaryColor
+        primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.blue,
@@ -32,7 +29,7 @@ class BarcodeApp extends StatelessWidget {
             foregroundColor: WidgetStateProperty.resolveWith<Color>(
               (Set<WidgetState> states) {
                 return states.contains(WidgetState.disabled)
-                    ? Colors.black.withOpacity(0.5) // Adjust opacity for disabled state
+                    ? Colors.black.withOpacity(0.5)
                     : Colors.black;
               },
             ),
@@ -51,7 +48,7 @@ class BarcodeHomePage extends StatefulWidget {
 
 class _BarcodeHomePageState extends State<BarcodeHomePage> {
   TextEditingController _textController = TextEditingController();
-  List<String> _barcodes = [];
+  List<String> _piecePins = [];
   List<dynamic> _results = [];
   bool _isLoading = false;
   String _apiResponse = '';
@@ -68,9 +65,9 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
   void _updateFilters() {
     List<String> terminalsList =
-        _results.map((result) => result['terminal']).cast<String>().toList();
+        _results.map((result) => result['Terminal Name']).cast<String>().toList();
     List<String> eventsList =
-        _results.map((result) => result['event']).cast<String>().toList();
+        _results.map((result) => result['Event Code Desc[Eng]']).cast<String>().toList();
 
     terminalsList.sort();
     eventsList.sort();
@@ -81,38 +78,15 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
   }
 
-  // Function to handle picking a file
   Future<void> _pickFile() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['txt'],
-      );
-
-      if (result != null) {
-        // Access file content
-        PlatformFile file = result.files.first;
-        Uint8List bytes = file.bytes!;
-
-        // Decode bytes to String
-        String fileContent = utf8.decode(bytes);
-
-        setState(() {
-          _textController.text = fileContent;
-          _clearResults(); // Clear results when new file is picked
-        });
-      }
-    } catch (e) {
-      print("Error picking file: $e");
-      _showSnackBar('Error picking file: $e');
-    }
+    // File picking logic here if needed
+    // You may not need this if you're using text input directly
   }
 
-  // Function to handle barcode search
-  Future<void> _searchBarcodes() async {
+  Future<void> _searchPiecePins() async {
     setState(() {
       _isLoading = true;
-      _barcodes = _textController.text
+      _piecePins = _textController.text
           .split('\n')
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
@@ -120,7 +94,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
 
     // Prepare request body with filters
-    Map<String, dynamic> requestBody = {'barcodes': _barcodes};
+    Map<String, dynamic> requestBody = {'piece_pins': _piecePins};
     if (_selectedTerminal != null && _selectedTerminal!.isNotEmpty) {
       requestBody['terminal'] = _selectedTerminal!;
     }
@@ -128,9 +102,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
       requestBody['event'] = _selectedEvent!;
     }
 
-    // Send request to backend
-    var url =
-        Uri.parse('http://ec2-3-76-250-99.eu-central-1.compute.amazonaws.com:5000/search');
+    var url = Uri.parse('http://localhost:5000/search');
     try {
       var response = await http
           .post(
@@ -138,52 +110,46 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
             headers: {'Content-Type': 'application/json'},
             body: json.encode(requestBody),
           )
-          .timeout(Duration(seconds: 30)); // Timeout after 30 seconds
+          .timeout(Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         setState(() {
           _results = json.decode(response.body);
           _apiResponse = 'Search completed successfully.';
           _isLoading = false;
-          _updateFilters(); // Update filters with new results
+          _updateFilters();
         });
       } else {
         setState(() {
           _isLoading = false;
         });
-        // Handle server error
         _showSnackBar('Error: ${response.reasonPhrase}');
-        print('Error: ${response.reasonPhrase}');
       }
-    } on io.SocketException catch (e) {
-      print('Error: No internet connection');
-      _showSnackBar('Error: No internet connection');
     } catch (e) {
-      print('Error: $e');
+      setState(() {
+        _isLoading = false;
+      });
       _showSnackBar('Error: $e');
     }
   }
 
-  // Function to clear the input textbox
   void _clearInput() {
     setState(() {
       _textController.clear();
-      _clearResults(); // Clear results when input is cleared
+      _clearResults();
     });
   }
 
-  // Function to clear the search results
   void _clearResults() {
     setState(() {
       _results.clear();
       _apiResponse = '';
-      _updateFilters(); // Clear filters when results are cleared
-      _selectedTerminal = null; // Reset selected terminal filter
-      _selectedEvent = null; // Reset selected event filter
+      _updateFilters();
+      _selectedTerminal = null;
+      _selectedEvent = null;
     });
   }
 
-  // Function to show a SnackBar with a message
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
@@ -206,7 +172,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Search Barcodes',
+                  'Search Piece Pins',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -217,43 +183,11 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                   children: [
                     ElevatedButton(
                       onPressed: _pickFile,
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                          (Set<WidgetState> states) {
-                            return states.contains(WidgetState.disabled)
-                                ? Colors.grey
-                                : Colors.blue;
-                          },
-                        ),
-                        foregroundColor: WidgetStateProperty.resolveWith<Color>(
-                          (Set<WidgetState> states) {
-                            return states.contains(WidgetState.disabled)
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.black;
-                          },
-                        ),
-                      ),
                       child: Text('Upload File'),
                     ),
                     SizedBox(width: 10),
                     ElevatedButton(
-                      onPressed: _searchBarcodes,
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                          (Set<WidgetState> states) {
-                            return states.contains(WidgetState.disabled)
-                                ? Colors.grey
-                                : Colors.blue;
-                          },
-                        ),
-                        foregroundColor: WidgetStateProperty.resolveWith<Color>(
-                          (Set<WidgetState> states) {
-                            return states.contains(WidgetState.disabled)
-                                ? Colors.black.withOpacity(0.5)
-                                : Colors.black;
-                          },
-                        ),
-                      ),
+                      onPressed: _searchPiecePins,
                       child: _isLoading ? CircularProgressIndicator(color: Colors.white) : Text('Search'),
                     ),
                   ],
@@ -266,7 +200,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
               maxLines: 5,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'Paste barcode numbers here',
+                labelText: 'Paste piece pin numbers here',
                 suffixIcon: IconButton(
                   icon: Icon(Icons.clear),
                   onPressed: _clearInput,
@@ -318,37 +252,44 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                   ? Center(child: CircularProgressIndicator())
                   : (_results.isEmpty
                       ? Center(child: Text('No results found.'))
-                      : ListView.builder(
-                          itemCount: _results.length,
-                          itemBuilder: (context, index) {
-                            var result = _results[index];
-                            return ListTile(
-                              title: Text('Barcode: ${result['barcode_number']}'),
-                              subtitle: Text('Terminal: ${result['terminal']}, Event: ${result['event']}, Timestamp: ${result['timestamp']}'),
-                            );
-                          },
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columns: [
+                              DataColumn(label: Text('Piece Pin')),
+                              DataColumn(label: Text('Scan Date')),
+                              DataColumn(label: Text('Scan Time')),
+                              DataColumn(label: Text('Terminal Name')),
+                              DataColumn(label: Text('Event Code Desc[Eng]')),
+                              DataColumn(label: Text('Expected Delivery Date')),
+                              DataColumn(label: Text('Service Date')),
+                              DataColumn(label: Text('Origin City')),
+                              DataColumn(label: Text('Destination City')),
+                              // Add more columns if needed
+                            ],
+                            rows: _results.map((result) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(result['Piece Pin'])),
+                                  DataCell(Text(result['Scan Date'])),
+                                  DataCell(Text(result['Scan Time'])),
+                                  DataCell(Text(result['Terminal Name'])),
+                                  DataCell(Text(result['Event Code Desc[Eng]'])),
+                                  DataCell(Text(result['Expected Delivery Date'])),
+                                  DataCell(Text(result['Service Date'])),
+                                  DataCell(Text(result['Origin City'])),
+                                  DataCell(Text(result['Destination City'])),
+                                  // Add more cells if needed
+                                ],
+                              );
+                            }).toList(),
+                          ),
                         )),
             ),
             SizedBox(height: 10),
             Center(
               child: ElevatedButton(
                 onPressed: _clearResults,
-                style: ButtonStyle(
-                  backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                    (Set<WidgetState> states) {
-                      return states.contains(WidgetState.disabled)
-                          ? Colors.grey
-                          : Colors.blue;
-                    },
-                  ),
-                  foregroundColor: WidgetStateProperty.resolveWith<Color>(
-                    (Set<WidgetState> states) {
-                      return states.contains(WidgetState.disabled)
-                          ? Colors.black.withOpacity(0.5)
-                          : Colors.black;
-                    },
-                  ),
-                ),
                 child: Text('Clear Results'),
               ),
             ),
@@ -358,20 +299,18 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     );
   }
 
-  // Function to apply selected filters to search results
   void _applyFilters() {
-    // Filter results based on selected terminal and event
     List<dynamic> filteredResults = _results;
 
     if (_selectedTerminal != null && _selectedTerminal!.isNotEmpty) {
       filteredResults = filteredResults
-          .where((result) => result['terminal'] == _selectedTerminal)
+          .where((result) => result['Terminal Name'] == _selectedTerminal)
           .toList();
     }
 
     if (_selectedEvent != null && _selectedEvent!.isNotEmpty) {
       filteredResults = filteredResults
-          .where((result) => result['event'] == _selectedEvent)
+          .where((result) => result['Event Code Desc[Eng]'] == _selectedEvent)
           .toList();
     }
 

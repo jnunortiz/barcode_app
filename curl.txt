@@ -1,0 +1,1 @@
+curl -X POST http://ec2-3-76-250-99.eu-central-1.compute.amazonaws.com:5000/search -H "Content-Type: application/json" -d "{\"barcodes\": [\"1234567890\"]}" 
