@@ -41,7 +41,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
     try {
       var response = await postRequest(url, requestBody).timeout(Duration(seconds: 30));
-      
+
       if (response.statusCode == 200) {
         setState(() {
           _results = List<Map<String, dynamic>>.from(json.decode(response.body));
@@ -155,19 +155,21 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
               ],
             ),
             SizedBox(height: 20),
-            TextField(
-              controller: _textController,
-              maxLines: 10,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Enter Piece Pins',
-                hintText: 'Enter or paste piece pins here...',
-                suffixIcon: _textController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear),
-                        onPressed: _clearInput,
-                      )
-                    : null,
+            Flexible(
+              child: TextField(
+                controller: _textController,
+                maxLines: 6, // Limit the TextField to display 6 lines
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Enter Piece Pins',
+                  hintText: 'Enter or paste piece pins here...',
+                  suffixIcon: _textController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear),
+                          onPressed: _clearInput,
+                        )
+                      : null,
+                ),
               ),
             ),
             SizedBox(height: 20),
@@ -178,7 +180,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                       child: SingleChildScrollView(
                         scrollDirection: Axis.vertical,
                         child: DataTable(
-                          columns: CustomWidgetBuilder.getColumns(_results),
+                          columns: CustomWidgetBuilder.getColumns(),
                           rows: _results
                               .map((result) => DataRow(cells: CustomWidgetBuilder.getCells(result)))
                               .toList(),
