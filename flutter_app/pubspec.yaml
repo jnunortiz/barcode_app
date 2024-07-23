@@ -9,7 +9,9 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^0.13.3  # HTTP package for making API requests
-  file_picker: ^4.2.0  # Package for picking files
+  file_picker: ^5.1.1  # Package for picking files
+  csv: ^5.0.2  # Package for CSV file handling
+  path_provider: ^2.0.11  # Package for accessing device storage paths
 
 dev_dependencies:
   flutter_test:

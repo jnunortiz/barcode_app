@@ -6,6 +6,10 @@ import datetime
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+# Set a fixed seed for reproducibility
+SEED = 42
+random.seed(SEED)
+
 def generate_piece_code():
     return ''.join(random.choices("0123456789", k=14))
 
