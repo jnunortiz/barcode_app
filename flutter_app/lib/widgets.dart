@@ -15,15 +15,15 @@ class CustomWidgetBuilder {
     'Delivery Company Name', 'Event Address Line 1', 'Event Address Line 2', 'Event City',
     'Event Province', 'Event Country', 'Event Postal Code', 'Delivery SNR Pin',
     'Delivery OSNR Flag', 'Cross Reference Pin', 'Container Id', 'Container Type',
-    'Pickup Delivery Location', 'Scan Srouce System Code', 'Scan Source Reference Code', 'Source Code'
+    'Pickup Delivery Location', 'Scan Source System Code', 'Scan Source Reference Code', 'Source Code'
   ];
 
-  /// Returns a list of DataColumn widgets for the DataTable based on the search results.
+  /// Returns a list of DataColumn widgets for the DataTable based on the predefined column order.
   static List<DataColumn> getColumns() {
     return _columnOrder.map((key) => DataColumn(label: Text(key))).toList();
   }
 
-  /// Returns a list of DataCell widgets for a given result map.
+  /// Returns a list of DataCell widgets for a given result map, matching the predefined column order.
   static List<DataCell> getCells(Map<String, dynamic> result) {
     return _columnOrder.map((key) {
       var value = result[key];

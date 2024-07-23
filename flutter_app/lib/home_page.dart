@@ -82,10 +82,10 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   }
 
   /// Exports the search results to a CSV file.
-  Future<void> _exportToCSV() async {
+  void _exportToCSV() {
     if (_results.isNotEmpty) {
-      final path = await FileService.exportToCSV(_results);
-      _showSnackBar('CSV exported to $path');
+      FileService.exportToCSV(_results);
+      _showSnackBar('CSV export initiated.');
     } else {
       _showSnackBar('No data available to export.');
     }
@@ -133,7 +133,9 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                   children: [
                     ElevatedButton(
                       onPressed: _searchPiecePins,
-                      child: _isLoading ? CircularProgressIndicator(color: Colors.white) : Text('Search'),
+                      child: _isLoading
+                          ? CircularProgressIndicator(color: Colors.white)
+                          : Text('Search'),
                     ),
                     SizedBox(width: 10),
                     ElevatedButton(

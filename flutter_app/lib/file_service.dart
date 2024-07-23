@@ -1,29 +1,41 @@
-// lib/file_service.dart
-import 'dart:convert';
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
+import 'dart:async'; // For Completer
+import 'dart:html' as html; // For web file operations
 import 'package:csv/csv.dart';
 
-/// A service class for handling file operations.
+/// A service class for handling file operations in a web environment.
 class FileService {
   /// Prompts the user to select a file and reads its contents.
   static Future<List<String>?> pickAndReadFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-    if (result != null) {
-      final bytes = result.files.single.bytes;
-      if (bytes != null) {
-        String content = utf8.decode(bytes);
-        return content.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
-      } else {
-        throw Exception('Error reading the file.');
+    final completer = Completer<List<String>?>();
+
+    final uploadInput = html.FileUploadInputElement();
+    uploadInput.accept = 'text/csv'; // Accept only CSV files
+
+    uploadInput.onChange.listen((e) {
+      if (uploadInput.files!.isEmpty) {
+        completer.complete(null); // No file selected
+        return;
       }
-    } else {
-      throw Exception('No file selected.');
-    }
+      final reader = html.FileReader();
+      reader.onLoadEnd.listen((e) {
+        final content = reader.result as String;
+        final lines = content.split('\n').map((line) => line.trim()).where((line) => line.isNotEmpty).toList();
+        completer.complete(lines);
+      });
+      reader.readAsText(uploadInput.files![0]);
+    });
+
+    uploadInput.click();
+    return completer.future;
   }
 
   /// Exports the provided results to a CSV file.
-  static Future<String> exportToCSV(List<Map<String, dynamic>> results) async {
+  static Future<void> exportToCSV(List<Map<String, dynamic>> results) async {
+    if (results.isEmpty) {
+      print('No data to export.');
+      return;
+    }
+
     List<List<dynamic>> rows = [];
     // Header
     rows.add(results.first.keys.toList());
@@ -33,10 +45,15 @@ class FileService {
     }
 
     String csv = const ListToCsvConverter().convert(rows);
-    final directory = Directory('${Platform.environment['USERPROFILE']}\\Downloads');
-    final path = '${directory.path}\\results.csv';
-    final file = File(path);
-    await file.writeAsString(csv);
-    return path;
+
+    final blob = html.Blob([csv]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', 'results.csv')
+      ..click(); // Initiate download
+
+    // Cleanup
+    html.Url.revokeObjectUrl(url); // Revoke the object URL
   }
 }
