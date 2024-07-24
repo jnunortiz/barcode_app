@@ -12,7 +12,8 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   TextEditingController _textController = TextEditingController();
   List<String> _piecePins = [];
   List<Map<String, dynamic>> _results = [];
-  bool _isLoading = false;
+  bool _isSearching = false; // Track if a search is in progress
+  bool _isExporting = false; // Track if export is in progress
   String _apiResponse = '';
 
   // Pagination state
@@ -42,7 +43,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     if (searchQuery.trim().isEmpty) return;
 
     setState(() {
-      _isLoading = true;
+      _isSearching = true;
       _piecePins = searchQuery
           .split('\n')
           .map((e) => e.trim())
@@ -64,19 +65,19 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
           _results = List<Map<String, dynamic>>.from(data['results']);
           _totalResults = data['total'];
           _apiResponse = 'Search completed successfully.';
-          _isLoading = false;
+          _isSearching = false;
         });
         _scrollToTop(); // Scroll to the top after results are updated
       } else {
         setState(() {
-          _isLoading = false;
+          _isSearching = false;
           _apiResponse = 'Error: ${response.reasonPhrase}';
         });
         _showSnackBar(_apiResponse);
       }
     } catch (e) {
       setState(() {
-        _isLoading = false;
+        _isSearching = false;
         _apiResponse = 'Error: $e';
       });
       _showSnackBar(_apiResponse);
@@ -102,7 +103,20 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   }
 
   Future<void> _exportToCSV() async {
-    await FileService.downloadCSV();
+    setState(() {
+      _isExporting = true; // Show progress indicator
+    });
+
+    try {
+      await FileService.downloadCSV();
+      _showSnackBar('Export completed successfully.');
+    } catch (e) {
+      _showSnackBar('Error during export: $e');
+    } finally {
+      setState(() {
+        _isExporting = false; // Hide progress indicator
+      });
+    }
   }
 
   void _clearResults() {
@@ -188,28 +202,26 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                     color: Colors.blue,
                   ),
                 ),
-                Row(
+                Wrap(
+                  spacing: 8, // Spacing between buttons
                   children: [
-                    ElevatedButton(
+                    _buildButton(
+                      text: 'Search',
+                      isLoading: _isSearching,
                       onPressed: () => _searchPiecePins(query: _textController.text),
-                      child: _isLoading
-                          ? CircularProgressIndicator(color: Colors.white)
-                          : Text('Search'),
                     ),
-                    SizedBox(width: 10),
-                    ElevatedButton(
+                    _buildButton(
+                      text: 'Clear Results',
                       onPressed: _clearResults,
-                      child: Text('Clear Results'),
                     ),
-                    SizedBox(width: 10),
-                    ElevatedButton(
+                    _buildButton(
+                      text: 'Export to CSV',
+                      isLoading: _isExporting,
                       onPressed: _exportToCSV,
-                      child: Text('Export to CSV'),
                     ),
-                    SizedBox(width: 10),
-                    ElevatedButton(
+                    _buildButton(
+                      text: 'Upload File',
                       onPressed: _pickAndLoadFile,
-                      child: Text('Upload File'),
                     ),
                   ],
                 ),
@@ -260,22 +272,46 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                   : Center(child: Text('No results found.')),
             ),
             if (_hasSearched)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  ElevatedButton(
-                    onPressed: _previousPage,
-                    child: Text('Previous'),
-                  ),
-                  Text('Page $_currentPage'),
-                  ElevatedButton(
-                    onPressed: _nextPage,
-                    child: Text('Next'),
-                  ),
-                ],
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildButton(
+                      text: 'Previous',
+                      onPressed: _previousPage,
+                    ),
+                    Text('Page $_currentPage'),
+                    _buildButton(
+                      text: 'Next',
+                      onPressed: _nextPage,
+                    ),
+                  ],
+                ),
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildButton({required String text, bool isLoading = false, required VoidCallback onPressed}) {
+    return SizedBox(
+      width: 150, // Fixed width for consistency
+      height: 40, // Fixed height for consistency
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        child: isLoading
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : Text(
+                text,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14), // Ensure font size is consistent
+              ),
       ),
     );
   }
