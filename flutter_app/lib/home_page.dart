@@ -23,6 +23,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   // File processing state
   int _linesRead = 0;
   bool _hasSearched = false;
+  String _lastSearchQuery = ''; // Store the last search query
 
   @override
   void initState() {
@@ -32,14 +33,20 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
   }
 
-  Future<void> _searchPiecePins() async {
+  Future<void> _searchPiecePins({String? query}) async {
+    // Use the provided query or the last search query if not provided
+    final searchQuery = query ?? _lastSearchQuery;
+
+    if (searchQuery.trim().isEmpty) return; // Avoid searching with empty input
+
     setState(() {
       _isLoading = true;
-      _piecePins = _textController.text
+      _piecePins = searchQuery
           .split('\n')
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
+      _lastSearchQuery = searchQuery; // Update last search query
       _hasSearched = true;
     });
 
@@ -73,10 +80,10 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     }
   }
 
-  void _clearResults() {
+  void _clearInput() {
     setState(() {
-      _results.clear();
-      _hasSearched = false;
+      _textController.clear(); // Clear the input field
+      // Do not clear results or pagination state
     });
   }
 
@@ -95,11 +102,10 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     await FileService.downloadCSV();
   }
 
-  void _clearInput() {
+  void _clearResults() {
     setState(() {
-      _textController.clear();
-      _linesRead = 0;
-      _hasSearched = false;
+      _results.clear();
+      _hasSearched = false; // Reset search flag when clearing results
     });
   }
 
@@ -115,7 +121,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
       setState(() {
         _currentPage++;
       });
-      _searchPiecePins();
+      _searchPiecePins(query: _lastSearchQuery);
     }
   }
 
@@ -124,7 +130,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
       setState(() {
         _currentPage--;
       });
-      _searchPiecePins();
+      _searchPiecePins(query: _lastSearchQuery);
     }
   }
 
@@ -167,7 +173,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                 Row(
                   children: [
                     ElevatedButton(
-                      onPressed: _searchPiecePins,
+                      onPressed: () => _searchPiecePins(query: _textController.text),
                       child: _isLoading
                           ? CircularProgressIndicator(color: Colors.white)
                           : Text('Search'),
