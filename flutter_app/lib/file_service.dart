@@ -1,11 +1,29 @@
-import 'dart:async'; // For Completer
-import 'dart:html' as html; // For web file operations
+// lib/file_service.dart
+import 'dart:async'; // Import async for Completer
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'dart:html' as html;
 import 'package:csv/csv.dart';
 
-/// A service class for handling file operations.
 class FileService {
+  /// Downloads the CSV file from the FastAPI endpoint.
+  static Future<void> downloadCSV() async {
+    final url = 'http://localhost:5000/export_csv';  // Update with your FastAPI URL
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final blob = html.Blob([response.bodyBytes], 'text/csv');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'data_store.csv')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      print('Failed to download CSV file');
+    }
+  }
+
   /// Prompts the user to select a file and reads its contents.
   static Future<List<String>?> pickAndReadFile() async {
     final completer = Completer<List<String>?>();
@@ -21,6 +39,7 @@ class FileService {
       final reader = html.FileReader();
       final chunks = <Uint8List>[];
 
+      // Function to read the next chunk of the file
       void readNextChunk([int start = 0]) {
         final chunkSize = 1024 * 1024; // 1MB chunks
         final end = (start + chunkSize > file.size) ? file.size : start + chunkSize;
@@ -82,5 +101,24 @@ class FileService {
       ..setAttribute('download', fileName)
       ..click();
     html.Url.revokeObjectUrl(url);
+  }
+
+  /// Initializes and communicates with the Web Worker.
+  static Future<void> processFileInWorker(String content) async {
+    final worker = html.Worker('worker.js');
+
+    final completer = Completer<void>();
+
+    worker.onMessage.listen((event) {
+      final message = event.data as Map<String, dynamic>;
+      if (message['type'] == 'result') {
+        print('Processed content from worker: ${message['content']}');
+        completer.complete();
+      }
+    });
+
+    worker.postMessage({'type': 'process', 'content': content});
+    
+    return completer.future;
   }
 }

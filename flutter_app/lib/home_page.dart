@@ -1,10 +1,8 @@
 import 'dart:convert'; // For JSON decoding
 import 'package:flutter/material.dart';
 import 'file_service.dart'; // Import file service for file handling
-import 'widgets.dart'; // Import widgets for custom widget building
-import 'services.dart'; // Import services for HTTP requests
+import 'package:http/http.dart' as http; // Import HTTP package
 
-/// The home page widget where users can interact with the app.
 class BarcodeHomePage extends StatefulWidget {
   @override
   _BarcodeHomePageState createState() => _BarcodeHomePageState();
@@ -17,6 +15,11 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   bool _isLoading = false;
   String _apiResponse = '';
 
+  // Pagination state
+  int _currentPage = 1;
+  int _pageSize = 10;
+  int _totalResults = 0;
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +28,6 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
   }
 
-  /// Searches for piece pins based on the text in the input field.
   Future<void> _searchPiecePins() async {
     setState(() {
       _isLoading = true;
@@ -37,14 +39,16 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
 
     Map<String, dynamic> requestBody = {'piece_pins': _piecePins};
-    var url = Uri.parse('http://localhost:5000/search');
+    var url = Uri.parse('http://localhost:5000/search?page=$_currentPage&size=$_pageSize');
 
     try {
       var response = await postRequest(url, requestBody).timeout(Duration(seconds: 30));
 
       if (response.statusCode == 200) {
+        var data = json.decode(response.body);
         setState(() {
-          _results = List<Map<String, dynamic>>.from(json.decode(response.body));
+          _results = List<Map<String, dynamic>>.from(data['results']);
+          _totalResults = data['total'];
           _apiResponse = 'Search completed successfully.';
           _isLoading = false;
         });
@@ -64,14 +68,12 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     }
   }
 
-  /// Clears the search results displayed on the page.
   void _clearResults() {
     setState(() {
       _results.clear();
     });
   }
 
-  /// Handles file upload and updates the input field with file contents.
   Future<void> _pickAndLoadFile() async {
     var lines = await FileService.pickAndReadFile();
     if (lines != null) {
@@ -81,30 +83,47 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     }
   }
 
-  /// Exports the search results to a CSV file.
-  void _exportToCSV() {
-    if (_results.isNotEmpty) {
-      FileService.exportToCSV(_results);
-      _showSnackBar('CSV export initiated.');
-    } else {
-      _showSnackBar('No data available to export.');
-    }
+  Future<void> _exportToCSV() async {
+    await FileService.downloadCSV();
   }
 
-  /// Clears the input field and search results.
   void _clearInput() {
     setState(() {
-      _textController.clear();
-      _clearResults();
+      _textController.clear(); // Only clear the input field
     });
   }
 
-  /// Displays a snack bar with the given message.
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
       duration: Duration(seconds: 3),
     ));
+  }
+
+  void _nextPage() {
+    if (_currentPage * _pageSize < _totalResults) {
+      setState(() {
+        _currentPage++;
+      });
+      _searchPiecePins();
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 1) {
+      setState(() {
+        _currentPage--;
+      });
+      _searchPiecePins();
+    }
+  }
+
+  Future<http.Response> postRequest(Uri url, Map<String, dynamic> body) async {
+    return await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
   }
 
   @override
@@ -160,7 +179,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
             Flexible(
               child: TextField(
                 controller: _textController,
-                maxLines: 6, // Limit the TextField to display 6 lines
+                maxLines: 6,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
                   labelText: 'Enter Piece Pins',
@@ -182,14 +201,36 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                       child: SingleChildScrollView(
                         scrollDirection: Axis.vertical,
                         child: DataTable(
-                          columns: CustomWidgetBuilder.getColumns(),
+                          columns: _results.isNotEmpty
+                              ? _results.first.keys
+                                  .map((key) => DataColumn(label: Text(key)))
+                                  .toList()
+                              : [],
                           rows: _results
-                              .map((result) => DataRow(cells: CustomWidgetBuilder.getCells(result)))
+                              .map((result) => DataRow(
+                                  cells: result.keys
+                                      .map((key) =>
+                                          DataCell(Text(result[key].toString())))
+                                      .toList()))
                               .toList(),
                         ),
                       ),
                     )
                   : Center(child: Text('No results found.')),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: _previousPage,
+                  child: Text('Previous'),
+                ),
+                Text('Page $_currentPage'),
+                ElevatedButton(
+                  onPressed: _nextPage,
+                  child: Text('Next'),
+                ),
+              ],
             ),
           ],
         ),
