@@ -25,6 +25,9 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   bool _hasSearched = false;
   String _lastSearchQuery = ''; // Store the last search query
 
+  // Scroll controller
+  ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -34,10 +37,9 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   }
 
   Future<void> _searchPiecePins({String? query}) async {
-    // Use the provided query or the last search query if not provided
     final searchQuery = query ?? _lastSearchQuery;
 
-    if (searchQuery.trim().isEmpty) return; // Avoid searching with empty input
+    if (searchQuery.trim().isEmpty) return;
 
     setState(() {
       _isLoading = true;
@@ -46,7 +48,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
-      _lastSearchQuery = searchQuery; // Update last search query
+      _lastSearchQuery = searchQuery;
       _hasSearched = true;
     });
 
@@ -64,6 +66,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
           _apiResponse = 'Search completed successfully.';
           _isLoading = false;
         });
+        _scrollToTop(); // Scroll to the top after results are updated
       } else {
         setState(() {
           _isLoading = false;
@@ -82,7 +85,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
   void _clearInput() {
     setState(() {
-      _textController.clear(); // Clear the input field
+      _textController.clear();
       // Do not clear results or pagination state
     });
   }
@@ -105,7 +108,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   void _clearResults() {
     setState(() {
       _results.clear();
-      _hasSearched = false; // Reset search flag when clearing results
+      _hasSearched = false;
     });
   }
 
@@ -134,12 +137,27 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     }
   }
 
+  void _scrollToTop() {
+    // Scroll to the top of the results view
+    _scrollController.animateTo(
+      0.0,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
   Future<http.Response> postRequest(Uri url, Map<String, dynamic> body) async {
     return await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose(); // Dispose of the controller when done
+    super.dispose();
   }
 
   @override
@@ -219,9 +237,10 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
             Expanded(
               child: _results.isNotEmpty
                   ? SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                      controller: _scrollController,
+                      scrollDirection: Axis.vertical,
                       child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
+                        scrollDirection: Axis.horizontal,
                         child: DataTable(
                           columns: _results.isNotEmpty
                               ? _results.first.keys
