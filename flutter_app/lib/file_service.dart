@@ -1,4 +1,3 @@
-// lib/file_service.dart
 import 'dart:async'; // Import async for Completer
 import 'dart:convert';
 import 'dart:typed_data';
@@ -10,17 +9,21 @@ class FileService {
   /// Downloads the CSV file from the FastAPI endpoint.
   static Future<void> downloadCSV() async {
     final url = 'http://localhost:5000/export_csv';  // Update with your FastAPI URL
-    final response = await http.get(Uri.parse(url));
+    try {
+      final response = await http.get(Uri.parse(url));
 
-    if (response.statusCode == 200) {
-      final blob = html.Blob([response.bodyBytes], 'text/csv');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', 'data_store.csv')
-        ..click();
-      html.Url.revokeObjectUrl(url);
-    } else {
-      print('Failed to download CSV file');
+      if (response.statusCode == 200) {
+        final blob = html.Blob([response.bodyBytes], 'text/csv');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', 'data_store.csv')
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        print('Failed to download CSV file: ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      print('Exception while downloading CSV: $e');
     }
   }
 

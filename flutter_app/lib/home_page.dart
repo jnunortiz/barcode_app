@@ -20,11 +20,15 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   int _pageSize = 10;
   int _totalResults = 0;
 
+  // File processing state
+  int _linesRead = 0;
+  bool _hasSearched = false;
+
   @override
   void initState() {
     super.initState();
     _textController.addListener(() {
-      setState(() {}); // Rebuild the widget when text changes
+      setState(() {});
     });
   }
 
@@ -36,6 +40,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
+      _hasSearched = true;
     });
 
     Map<String, dynamic> requestBody = {'piece_pins': _piecePins};
@@ -71,6 +76,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
   void _clearResults() {
     setState(() {
       _results.clear();
+      _hasSearched = false;
     });
   }
 
@@ -79,6 +85,8 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     if (lines != null) {
       setState(() {
         _textController.text = lines.join('\n');
+        _linesRead = lines.length;
+        _hasSearched = false;
       });
     }
   }
@@ -89,7 +97,9 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
 
   void _clearInput() {
     setState(() {
-      _textController.clear(); // Only clear the input field
+      _textController.clear();
+      _linesRead = 0;
+      _hasSearched = false;
     });
   }
 
@@ -137,6 +147,12 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_linesRead > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10.0),
+                child: Text('Lines read from file: $_linesRead',
+                    style: TextStyle(fontSize: 16, color: Colors.grey)),
+              ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -218,20 +234,21 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
                     )
                   : Center(child: Text('No results found.')),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton(
-                  onPressed: _previousPage,
-                  child: Text('Previous'),
-                ),
-                Text('Page $_currentPage'),
-                ElevatedButton(
-                  onPressed: _nextPage,
-                  child: Text('Next'),
-                ),
-              ],
-            ),
+            if (_hasSearched)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  ElevatedButton(
+                    onPressed: _previousPage,
+                    child: Text('Previous'),
+                  ),
+                  Text('Page $_currentPage'),
+                  ElevatedButton(
+                    onPressed: _nextPage,
+                    child: Text('Next'),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
