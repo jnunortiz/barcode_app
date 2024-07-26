@@ -116,7 +116,11 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
 
     try {
-      await FileService.downloadCSV();
+      if (_piecePins.isEmpty || _selectedColumns.isEmpty) {
+        _showSnackBar('No data to export or no columns selected.');
+        return;
+      }
+      await FileService.downloadCSV(_piecePins, _selectedColumns);
       _showSnackBar('Export completed successfully.');
     } catch (e) {
       _showSnackBar('Error during export: $e');

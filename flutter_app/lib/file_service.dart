@@ -3,14 +3,21 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'dart:html' as html;
-import 'package:csv/csv.dart';
 
 class FileService {
   /// Downloads the CSV file from the FastAPI endpoint.
-  static Future<void> downloadCSV() async {
-    final url = 'http://localhost:5000/export_csv';  // Update with your FastAPI URL
+  static Future<void> downloadCSV(List<String> piecePins, List<String> columns) async {
+    final url = Uri.parse('http://localhost:5000/export_csv');  // Update with your FastAPI URL
+
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'piece_pins': piecePins,
+          'columns': columns,
+        }),
+      );
 
       if (response.statusCode == 200) {
         final blob = html.Blob([response.bodyBytes], 'text/csv');
@@ -80,48 +87,27 @@ class FileService {
   }
 
   /// Exports the provided results to a CSV file.
-  static Future<void> exportToCSV(List<Map<String, dynamic>> results) async {
-    List<List<dynamic>> rows = [];
-    // Header
-    if (results.isNotEmpty) {
-      rows.add(results.first.keys.toList());
-    }
-    // Data
-    for (var result in results) {
-      rows.add(result.values.toList());
+  static Future<void> exportResultsToCSV(List<Map<String, dynamic>> results, List<String> selectedColumns) async {
+    if (results.isEmpty || selectedColumns.isEmpty) {
+      print('No data to export or no columns selected.');
+      return;
     }
 
-    String csv = const ListToCsvConverter().convert(rows);
-    
-    _exportFile(csv, 'results.csv', 'text/csv');
-  }
+    final csv = StringBuffer();
 
-  /// Exports data to a file with the given name and MIME type.
-  static void _exportFile(String content, String fileName, String mimeType) {
-    final blob = html.Blob([content], mimeType);
+    // Write the header row
+    csv.writeln(selectedColumns.join(','));
+
+    // Write data rows
+    for (var row in results) {
+      csv.writeln(selectedColumns.map((col) => row[col] ?? '').join(','));
+    }
+
+    final blob = html.Blob([csv.toString()], 'text/csv');
     final url = html.Url.createObjectUrlFromBlob(blob);
     final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', fileName)
+      ..setAttribute('download', 'results.csv')
       ..click();
     html.Url.revokeObjectUrl(url);
-  }
-
-  /// Initializes and communicates with the Web Worker.
-  static Future<void> processFileInWorker(String content) async {
-    final worker = html.Worker('worker.js');
-
-    final completer = Completer<void>();
-
-    worker.onMessage.listen((event) {
-      final message = event.data as Map<String, dynamic>;
-      if (message['type'] == 'result') {
-        print('Processed content from worker: ${message['content']}');
-        completer.complete();
-      }
-    });
-
-    worker.postMessage({'type': 'process', 'content': content});
-    
-    return completer.future;
   }
 }

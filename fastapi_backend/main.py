@@ -1,11 +1,13 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import io
 import csv
 import random
+import pandas as pd
+import logging
 
 app = FastAPI()
 
@@ -18,9 +20,17 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+
 # Define the model for the search request
 class SearchRequest(BaseModel):
     piece_pins: List[str]
+
+# Define the model for the export request
+class ExportRequest(BaseModel):
+    piece_pins: List[str]
+    columns: Optional[List[str]] = None
 
 # Mock data storage
 data_store = {}
@@ -119,26 +129,63 @@ async def generate_data(count: int):
     return {"message": f"Generated {count} data entries"}
 
 # Function to generate CSV data
-def generate_csv():
+def generate_csv(columns: Optional[List[str]] = None, data: Optional[List[dict]] = None):
     output = io.StringIO()
-    if not data_store:
+    if not data:
+        logging.debug("Data store is empty")
         return output
-    fieldnames = list(next(iter(data_store.values())).keys())
+
+    # Determine the fieldnames to use
+    if columns:
+        fieldnames = columns
+        logging.debug(f"Filtering columns: {fieldnames}")
+    else:
+        fieldnames = list(next(iter(data), {}).keys())
+        logging.debug(f"Using all columns: {fieldnames}")
+
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
-    for item in data_store.values():
-        writer.writerow(item)
+    for item in data:
+        # Filter the item based on the columns provided
+        filtered_item = {col: item.get(col, '') for col in fieldnames}
+        writer.writerow(filtered_item)
     output.seek(0)
     return output
 
-# Endpoint to export all data as CSV
-@app.get("/export_csv")
-async def export_csv():
-    buffer = generate_csv()
+# Endpoint to export data as CSV with optional column filtering
+@app.post("/export_csv")
+async def export_csv(request: Request):
+    # Parse JSON body
+    data = await request.json()
+    columns = data.get('columns', [])
+    piece_pins = data.get('piece_pins', [])
+
+    if not columns:
+        # If no columns provided, use a default or all columns
+        columns = [
+            'Piece Pin', 'Shipment Pin', 'Scan Date', 'Scan Time', 'System Update Date', 'Terminal Name', 'Terminal Id',
+            'Route', 'Scan Code', 'Event Reason Code', 'Event Code Desc[Eng]', 'Event Code Desc[Fr]', 'Comment',
+            'Delivery Signature', 'Expected Delivery Date', 'Service Date', 'Origin Terminal Name', 'Origin Terminal Id',
+            'Origin City', 'Origin Province', 'Origin FSA', 'Origin PC', 'Origin Country Code', 'Destination Terminal Id',
+            'Destination Terminal Name', 'Destination City', 'Destination Province', 'Destination FSA', 'Destination PC',
+            'Destination Country Code', 'Account Number', 'Exp Mode of Trans', 'Product Code', 'Revised Initial Transit Days',
+            'Delivery Company Name', 'Event Address Line 1', 'Event Address Line 2', 'Event City', 'Event Province',
+            'Event Country', 'Event Postal Code', 'Delivery SNR Pin', 'Delivery OSNR Flag', 'Cross Reference Pin',
+            'Container Id', 'Container Type', 'Pickup Delivery Location', 'Scan Source System Code', 'Scan Source Reference Code',
+            'Source Code'
+        ]
+
+    # Fetch the data for the given piece pins
+    results = [data_store.get(pin, {}) for pin in piece_pins]
+
+    # Generate CSV data
+    output = generate_csv(columns=columns, data=results)
+
+    # Return the CSV data as a file response
     return StreamingResponse(
-        buffer,
+        output,
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=data_store.csv"}
+        headers={"Content-Disposition": "attachment; filename=export.csv"}
     )
 
 # Root endpoint
