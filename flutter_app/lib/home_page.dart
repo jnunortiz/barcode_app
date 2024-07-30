@@ -59,7 +59,7 @@ class _BarcodeHomePageState extends State<BarcodeHomePage> {
     });
 
     Map<String, dynamic> requestBody = {'piece_pins': _piecePins};
-    var url = Uri.parse('http://localhost:5000/search?page=$_currentPage&size=$_pageSize');
+    var url = Uri.parse('http://fastapi-app-load-balancer-2141658843.eu-central-1.elb.amazonaws.com/search?page=$_currentPage&size=$_pageSize');
 
     try {
       var response = await postRequest(url, requestBody).timeout(Duration(seconds: 30));

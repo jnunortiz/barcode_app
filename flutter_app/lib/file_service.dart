@@ -7,7 +7,7 @@ import 'dart:html' as html;
 class FileService {
   /// Downloads the CSV file from the FastAPI endpoint.
   static Future<void> downloadCSV(List<String> piecePins, List<String> columns) async {
-    final url = Uri.parse('http://localhost:5000/export_csv');  // Update with your FastAPI URL
+    final url = Uri.parse('http://fastapi-app-load-balancer-2141658843.eu-central-1.elb.amazonaws.com/export_csv');  // Update with your FastAPI URL
 
     try {
       final response = await http.post(

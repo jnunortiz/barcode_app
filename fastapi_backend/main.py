@@ -192,8 +192,3 @@ async def export_csv(request: Request):
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Barcode API"}
-
-# Run the application
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=5000, reload=True)
